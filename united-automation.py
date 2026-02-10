@@ -15,9 +15,9 @@ import time
 import traceback
 from datetime import datetime, timezone
 
-import undetected_chromedriver as uc
+from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
@@ -268,20 +268,19 @@ Object.defineProperty(navigator, "maxTouchPoints", { get: () => 0 });
 # ─── BROWSER ─────────────────────────────────────────────────────────────────
 
 def launch_browser():
-    log("INFO", "browser", f"Connecting to Chrome on port {REMOTE_DEBUG_PORT}...")
+    log("INFO", "browser", f"Attaching to Chrome on port {REMOTE_DEBUG_PORT}...")
 
-    options = uc.ChromeOptions()
-    options.debugger_address = f"127.0.0.1:{REMOTE_DEBUG_PORT}"
-
+    options = webdriver.ChromeOptions()
+    options.add_experimental_option("debuggerAddress", f"127.0.0.1:{REMOTE_DEBUG_PORT}")
     options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
 
-    driver = uc.Chrome(options=options, headless=False, version_main=144)
+    driver = webdriver.Chrome(options=options)
     driver.set_page_load_timeout(NAV_TIMEOUT)
     driver.implicitly_wait(5)
 
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": EXTRA_EVASIONS})
 
-    log("INFO", "browser", "Connected to remote Chrome + extra evasions injected")
+    log("INFO", "browser", "Attached to remote Chrome + extra evasions injected")
     return driver
 
 # ─── NETWORK CAPTURE(via Chrome Performance Logging) ────────────────────────
