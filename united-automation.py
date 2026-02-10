@@ -3,8 +3,10 @@
 Selenium United Airlines Automation — Standalone Single File (Stealth)
 
 Install & run:
-    pip install selenium webdriver-manager
+    pip install selenium
     python united-automation.py
+
+Requires chromedriver.exe in the same directory (must match your Chrome version).
 """
 
 import json
@@ -29,11 +31,11 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     WebDriverException,
 )
-from webdriver_manager.chrome import ChromeDriverManager
 
 # ─── CONFIG (all hardcoded, no .env needed) ──────────────────────────────────
 
 REMOTE_DEBUG_PORT = 9222
+CHROMEDRIVER_PATH = r"chromedriver.exe"
 OUTPUT_DIR = "./output"
 NAV_TIMEOUT = 60
 MAX_RETRIES = 3
@@ -299,19 +301,10 @@ def launch_browser():
         print("=" * 60 + "\n")
         raise RuntimeError(f"Chrome not reachable on port {REMOTE_DEBUG_PORT}")
 
-    resp = urllib.request.urlopen(f"http://127.0.0.1:{REMOTE_DEBUG_PORT}/json/version", timeout=5)
-    info = json.loads(resp.read())
-    browser_ver = info.get("Browser", "")
-    log("INFO", "browser", f"Remote Chrome: {browser_ver}")
-
-    chrome_major = browser_ver.split("/")[-1].split(".")[0] if "/" in browser_ver else None
-    log("INFO", "browser", f"Chrome major version: {chrome_major}")
-
-    service = ChromeService(ChromeDriverManager(driver_version=info.get("Browser", "").split("/")[-1]).install())
-
     options = webdriver.ChromeOptions()
     options.add_experimental_option("debuggerAddress", f"127.0.0.1:{REMOTE_DEBUG_PORT}")
 
+    service = ChromeService(CHROMEDRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=options)
     driver.set_page_load_timeout(NAV_TIMEOUT)
     driver.implicitly_wait(5)
