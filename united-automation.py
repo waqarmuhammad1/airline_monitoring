@@ -13,6 +13,7 @@ import re
 import sys
 import time
 import traceback
+import urllib.request
 from datetime import datetime, timezone
 
 from selenium import webdriver
@@ -267,12 +268,44 @@ Object.defineProperty(navigator, "maxTouchPoints", { get: () => 0 });
 
 # ─── BROWSER ─────────────────────────────────────────────────────────────────
 
+def verify_chrome_reachable():
+    url = f"http://127.0.0.1:{REMOTE_DEBUG_PORT}/json/version"
+    try:
+        resp = urllib.request.urlopen(url, timeout=5)
+        info = json.loads(resp.read())
+        log("INFO", "browser", f"Chrome reachable — {info.get('Browser', 'unknown')}")
+        return True
+    except Exception:
+        return False
+
 def launch_browser():
     log("INFO", "browser", f"Attaching to Chrome on port {REMOTE_DEBUG_PORT}...")
 
+    if not verify_chrome_reachable():
+        print("\n" + "=" * 60)
+        print("  ERROR: Chrome is NOT reachable on port", REMOTE_DEBUG_PORT)
+        print("=" * 60)
+        print("\nIMPORTANT: You must close ALL Chrome windows/processes first,")
+        print("then relaunch Chrome with the debug flag:\n")
+        print('  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"', end=" ")
+        print(f'--remote-debugging-port={REMOTE_DEBUG_PORT}', end=" ")
+        print('--user-data-dir="C:\\Users\\waqar\\AppData\\Local\\Google\\Chrome\\User Data"', end=" ")
+        print('--profile-directory="Profile 9"')
+        print("\nThe --remote-debugging-port flag is IGNORED if Chrome is")
+        print("already running. You must kill all chrome.exe first.")
+        print("\nOn Windows run:  taskkill /F /IM chrome.exe")
+        print("Then relaunch with the command above.")
+        print("=" * 60 + "\n")
+        raise RuntimeError(f"Chrome not reachable on port {REMOTE_DEBUG_PORT}")
+
+    ws_url = f"http://127.0.0.1:{REMOTE_DEBUG_PORT}"
+    resp = urllib.request.urlopen(f"{ws_url}/json/version", timeout=5)
+    info = json.loads(resp.read())
+    ws_debugger = info.get("webSocketDebuggerUrl", "")
+    log("INFO", "browser", f"DevTools WS: {ws_debugger}")
+
     options = webdriver.ChromeOptions()
     options.add_experimental_option("debuggerAddress", f"127.0.0.1:{REMOTE_DEBUG_PORT}")
-    options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
 
     driver = webdriver.Chrome(options=options)
     driver.set_page_load_timeout(NAV_TIMEOUT)
