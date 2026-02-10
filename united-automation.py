@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
@@ -30,7 +31,7 @@ from selenium.common.exceptions import (
 
 # ─── CONFIG (all hardcoded, no .env needed) ──────────────────────────────────
 
-USER_DATA_DIR = os.path.abspath("./profile")
+REMOTE_DEBUG_PORT = 9222
 OUTPUT_DIR = "./output"
 NAV_TIMEOUT = 60
 MAX_RETRIES = 3
@@ -267,26 +268,10 @@ Object.defineProperty(navigator, "maxTouchPoints", { get: () => 0 });
 # ─── BROWSER ─────────────────────────────────────────────────────────────────
 
 def launch_browser():
-    log("INFO", "browser", f"Profile: {USER_DATA_DIR} | Headless: false")
+    log("INFO", "browser", f"Connecting to Chrome on port {REMOTE_DEBUG_PORT}...")
 
     options = uc.ChromeOptions()
-    options.add_argument(f"--user-data-dir={USER_DATA_DIR}")
-    options.add_argument("--window-size=1440,900")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("--disable-features=IsolateOrigins,site-per-process")
-    options.add_argument("--no-first-run")
-    options.add_argument("--no-default-browser-check")
-    options.add_argument("--disable-infobars")
-    options.add_argument("--disable-background-networking")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--metrics-recording-only")
-    options.add_argument("--no-sandbox")
-    options.add_argument(
-        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-    )
-    options.add_argument("--lang=en-US")
+    options.debugger_address = f"127.0.0.1:{REMOTE_DEBUG_PORT}"
 
     options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
 
@@ -296,7 +281,7 @@ def launch_browser():
 
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": EXTRA_EVASIONS})
 
-    log("INFO", "browser", "Launched with undetected-chromedriver + extra evasions")
+    log("INFO", "browser", "Connected to remote Chrome + extra evasions injected")
     return driver
 
 # ─── LOGIN CHECK ─────────────────────────────────────────────────────────────
