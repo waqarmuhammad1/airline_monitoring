@@ -290,7 +290,7 @@ def launch_browser():
 
     options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
 
-    driver = uc.Chrome(options=options, headless=False)
+    driver = uc.Chrome(options=options, headless=False, version_main=144)
     driver.set_page_load_timeout(NAV_TIMEOUT)
     driver.implicitly_wait(5)
 
