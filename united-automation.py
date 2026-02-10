@@ -284,82 +284,7 @@ def launch_browser():
     log("INFO", "browser", "Connected to remote Chrome + extra evasions injected")
     return driver
 
-# ─── LOGIN CHECK ─────────────────────────────────────────────────────────────
-
-def check_google_login(driver):
-    try:
-        driver.get("https://accounts.google.com/")
-        time.sleep(3)
-
-        url = driver.current_url
-        log("INFO", "login", f"URL: {url}")
-
-        if "myaccount.google.com" in url or "SignOutOptions" in url:
-            return True
-
-        indicators = [
-            'a[aria-label*="Google Account"]',
-            'img[data-profile-identifier]',
-            '[data-ogsr-up]',
-            'a[href*="SignOutOptions"]',
-            'header img[src*="googleusercontent"]',
-            'a[aria-label*="account"]',
-        ]
-        for sel in indicators:
-            try:
-                el = driver.find_element(By.CSS_SELECTOR, sel)
-                if el.is_displayed():
-                    log("INFO", "login", f"Signed-in indicator: {sel}")
-                    return True
-            except (NoSuchElementException, StaleElementReferenceException):
-                continue
-
-        try:
-            sign_in_links = driver.find_elements(By.CSS_SELECTOR, 'a[href*="ServiceLogin"], button')
-            for el in sign_in_links:
-                try:
-                    if el.is_displayed() and "sign in" in (el.text or "").lower():
-                        return False
-                except StaleElementReferenceException:
-                    continue
-        except Exception:
-            pass
-
-        try:
-            body = driver.find_element(By.TAG_NAME, "body").text
-            if "Manage your Google Account" in body or "Welcome" in body:
-                return True
-        except Exception:
-            pass
-
-        return False
-    except Exception as err:
-        log("ERROR", "login", "Check failed", err)
-        return False
-
-def wait_for_enter():
-    input("Press ENTER after you have signed in... ")
-
-def ensure_login(driver):
-    if check_google_login(driver):
-        log("INFO", "login", "Already signed in")
-        return
-
-    print("\n========================================")
-    print("  MANUAL LOGIN REQUIRED")
-    print("========================================")
-    print("Sign in to Google in the browser window.")
-    print("Then press ENTER here to continue.")
-    print("========================================\n")
-
-    wait_for_enter()
-
-    if check_google_login(driver):
-        log("INFO", "login", "Verified after manual login")
-    else:
-        log("WARN", "login", "Could not verify login, continuing anyway...")
-
-# ─── NETWORK CAPTURE (via Chrome Performance Logging) ────────────────────────
+# ─── NETWORK CAPTURE(via Chrome Performance Logging) ────────────────────────
 
 total_requests = 0
 matched_responses = 0
@@ -660,7 +585,6 @@ def main():
 
     try:
         driver = launch_browser()
-        ensure_login(driver)
 
         capture_start_time = datetime.now(timezone.utc)
         jsonl_path = output_path("network-matches.jsonl")
