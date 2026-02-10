@@ -1,0 +1,8 @@
+node_modules/
+dist/
+profile/
+output/*.jsonl
+output/*.json
+!output/.gitkeep
+.env
+*.log
