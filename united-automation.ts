@@ -1,44 +1,34 @@
 #!/usr/bin/env npx tsx
 /**
- * Playwright United Airlines Automation — Single File Version
+ * Playwright United Airlines Automation — Standalone Single File (Stealth)
  *
- * Prerequisites:
+ * Install & run:
  *   npm init -y
- *   npm install playwright dotenv
+ *   npm install playwright-extra puppeteer-extra-plugin-stealth
  *   npx playwright install chromium
- *
- * Run:
  *   npx tsx united-automation.ts
- *
- * Optional .env file (or export env vars):
- *   USER_DATA_DIR=./profile
- *   OUTPUT_DIR=./output
- *   HEADLESS=false
- *   NAV_TIMEOUT=60000
- *   MAX_RETRIES=3
- *   RETRY_BACKOFF_MS=1000
- *   MAX_BODY_SIZE=2097152
- *   UNITED_URL=https://www.united.com/en/us/fsr/choose-flights?f=SFO&t=NRT&d=2026-04-10&r=2026-04-12&sc=7%2C7&px=1&taxng=1&newHP=True&clm=7&st=bestmatches&tqp=R
  */
 
 import fs from "fs";
 import path from "path";
 import readline from "readline";
-import { chromium, BrowserContext, Page, Locator, Request, Response } from "playwright";
+import { BrowserContext, Page, Locator, Request, Response } from "playwright";
+import { chromium } from "playwright-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
-try { require("dotenv").config(); } catch { /* dotenv optional */ }
+// ─── STEALTH SETUP ───────────────────────────────────────────────────────────
 
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
+chromium.use(StealthPlugin());
 
-const USER_DATA_DIR = path.resolve(process.env.USER_DATA_DIR || "./profile");
-const OUTPUT_DIR = process.env.OUTPUT_DIR || "./output";
-const HEADLESS = process.env.HEADLESS === "true";
-const NAV_TIMEOUT = parseInt(process.env.NAV_TIMEOUT || "60000", 10);
-const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || "3", 10);
-const RETRY_BACKOFF_MS = parseInt(process.env.RETRY_BACKOFF_MS || "1000", 10);
-const MAX_BODY_SIZE = parseInt(process.env.MAX_BODY_SIZE || "2097152", 10);
+// ─── CONFIG (all hardcoded, no .env needed) ──────────────────────────────────
+
+const USER_DATA_DIR = path.resolve("./profile");
+const OUTPUT_DIR = "./output";
+const NAV_TIMEOUT = 60000;
+const MAX_RETRIES = 3;
+const RETRY_BACKOFF_MS = 1000;
+const MAX_BODY_SIZE = 2097152;
 const UNITED_URL =
-  process.env.UNITED_URL ||
   "https://www.united.com/en/us/fsr/choose-flights?f=SFO&t=NRT&d=2026-04-10&r=2026-04-12&sc=7%2C7&px=1&taxng=1&newHP=True&clm=7&st=bestmatches&tqp=R";
 
 const PRICE_PATTERN = /\$\s?\d[\d,]*(\.\d{2})?|"USD"|"amount"\s*:\s*\d|"price"\s*:\s*\d|"fare"\s*:\s*\d/i;
@@ -112,13 +102,174 @@ async function withRetry<T>(
   throw lastError;
 }
 
+// ─── EXTRA EVASION INIT SCRIPT (layered on top of stealth plugin) ────────────
+
+const EXTRA_EVASIONS = `
+  Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+  if (navigator.webdriver !== undefined) {
+    try { delete Object.getPrototypeOf(navigator).webdriver; } catch(e) {}
+  }
+
+  Object.defineProperty(navigator, "languages", { get: () => ["en-US", "en"] });
+
+  Object.defineProperty(navigator, "plugins", {
+    get: () => {
+      var arr = [
+        { name: "Chrome PDF Plugin", filename: "internal-pdf-viewer", description: "Portable Document Format" },
+        { name: "Chrome PDF Viewer", filename: "mhjfbmdgcfjbbpaeojofohoefgiehjai", description: "" },
+        { name: "Native Client", filename: "internal-nacl-plugin", description: "" },
+      ];
+      arr.item = function(i) { return this[i] || null; };
+      arr.namedItem = function(n) { return this.find(function(p) { return p.name === n; }) || null; };
+      arr.refresh = function() {};
+      return arr;
+    }
+  });
+
+  Object.defineProperty(navigator, "mimeTypes", {
+    get: () => {
+      var arr = [
+        { type: "application/pdf", suffixes: "pdf", description: "Portable Document Format" },
+        { type: "application/x-google-chrome-pdf", suffixes: "pdf", description: "Portable Document Format" },
+      ];
+      arr.item = function(i) { return this[i] || null; };
+      arr.namedItem = function(n) { return this.find(function(m) { return m.type === n; }) || null; };
+      return arr;
+    }
+  });
+
+  (function() {
+    var oq = window.navigator.permissions.query.bind(window.navigator.permissions);
+    window.navigator.permissions.query = function(p) {
+      return p.name === "notifications"
+        ? Promise.resolve({ state: Notification.permission })
+        : oq(p);
+    };
+  })();
+
+  (function() {
+    var gp = WebGLRenderingContext.prototype.getParameter;
+    WebGLRenderingContext.prototype.getParameter = function(p) {
+      if (p === 37445) return "Intel Inc.";
+      if (p === 37446) return "Intel Iris OpenGL Engine";
+      return gp.call(this, p);
+    };
+    if (typeof WebGL2RenderingContext !== "undefined") {
+      var gp2 = WebGL2RenderingContext.prototype.getParameter;
+      WebGL2RenderingContext.prototype.getParameter = function(p) {
+        if (p === 37445) return "Intel Inc.";
+        if (p === 37446) return "Intel Iris OpenGL Engine";
+        return gp2.call(this, p);
+      };
+    }
+  })();
+
+  if (!window.chrome) window.chrome = {};
+  if (!window.chrome.runtime) window.chrome.runtime = { connect: function() {}, sendMessage: function() {} };
+
+  (function() {
+    try {
+      var origCreate = document.createElement.bind(document);
+      document.createElement = function() {
+        var el = origCreate.apply(this, arguments);
+        if (arguments[0] === "iframe") {
+          Object.defineProperty(el, "contentWindow", {
+            get: new Proxy(Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, "contentWindow").get, {
+              apply: function(target, thisArg, args) {
+                var w = Reflect.apply(target, thisArg, args);
+                if (w) {
+                  try { Object.defineProperty(w.navigator, "webdriver", { get: () => undefined }); } catch(e) {}
+                }
+                return w;
+              }
+            })
+          });
+        }
+        return el;
+      };
+    } catch(e) {}
+  })();
+
+  if (typeof Notification !== "undefined" && Notification.permission === "default") {
+    Object.defineProperty(Notification, "permission", { get: () => "default" });
+  }
+
+  (function() {
+    var origToString = Function.prototype.toString;
+    Function.prototype.toString = function() {
+      if (this === Function.prototype.toString) return "function toString() { [native code] }";
+      if (this === navigator.permissions.query) return "function query() { [native code] }";
+      return origToString.call(this);
+    };
+  })();
+
+  (function() {
+    var origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    HTMLCanvasElement.prototype.toDataURL = function(type) {
+      var ctx = this.getContext("2d");
+      if (ctx) {
+        var style = ctx.fillStyle;
+        ctx.fillStyle = "rgba(0,0,1,0.01)";
+        ctx.fillRect(0, 0, 1, 1);
+        ctx.fillStyle = style;
+      }
+      return origToDataURL.apply(this, arguments);
+    };
+    var origToBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function() {
+      var ctx = this.getContext("2d");
+      if (ctx) {
+        var style = ctx.fillStyle;
+        ctx.fillStyle = "rgba(0,0,1,0.01)";
+        ctx.fillRect(0, 0, 1, 1);
+        ctx.fillStyle = style;
+      }
+      return origToBlob.apply(this, arguments);
+    };
+  })();
+
+  (function() {
+    if (typeof AudioContext !== "undefined") {
+      var origCreateOsc = AudioContext.prototype.createOscillator;
+      AudioContext.prototype.createOscillator = function() {
+        var osc = origCreateOsc.apply(this, arguments);
+        osc._isModified = true;
+        return osc;
+      };
+    }
+  })();
+
+  if (navigator.getBattery) {
+    navigator.getBattery = function() {
+      return Promise.resolve({
+        charging: true, chargingTime: 0, dischargingTime: Infinity, level: 1.0,
+        addEventListener: function() {}, removeEventListener: function() {},
+      });
+    };
+  }
+
+  if (navigator.connection) {
+    Object.defineProperty(navigator, "connection", {
+      get: () => ({
+        effectiveType: "4g", rtt: 50, downlink: 10, saveData: false,
+        addEventListener: function() {}, removeEventListener: function() {},
+      })
+    });
+  }
+
+  Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 8 });
+  Object.defineProperty(navigator, "deviceMemory", { get: () => 8 });
+  Object.defineProperty(navigator, "platform", { get: () => "Win32" });
+  Object.defineProperty(navigator, "maxTouchPoints", { get: () => 0 });
+`;
+
 // ─── BROWSER ─────────────────────────────────────────────────────────────────
 
 async function launchBrowser(): Promise<BrowserContext> {
-  log("INFO", "browser", `Profile: ${USER_DATA_DIR} | Headless: ${HEADLESS}`);
+  log("INFO", "browser", `Profile: ${USER_DATA_DIR} | Headless: false`);
 
   const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
-    headless: HEADLESS,
+    headless: false,
     viewport: { width: 1440, height: 900 },
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -130,6 +281,11 @@ async function launchBrowser(): Promise<BrowserContext> {
       "--no-first-run",
       "--no-default-browser-check",
       "--disable-infobars",
+      "--disable-background-networking",
+      "--disable-dev-shm-usage",
+      "--disable-extensions",
+      "--metrics-recording-only",
+      "--no-sandbox",
     ],
     ignoreDefaultArgs: ["--enable-automation"],
     bypassCSP: true,
@@ -138,32 +294,10 @@ async function launchBrowser(): Promise<BrowserContext> {
   context.setDefaultNavigationTimeout(NAV_TIMEOUT);
   context.setDefaultTimeout(NAV_TIMEOUT);
 
-  const stealthScript = `
-    Object.defineProperty(navigator, "webdriver", { get: () => false });
-    Object.defineProperty(navigator, "languages", { get: () => ["en-US", "en"] });
-    Object.defineProperty(navigator, "plugins", { get: () => [1, 2, 3, 4, 5] });
-    (function() {
-      var oq = window.navigator.permissions.query.bind(window.navigator.permissions);
-      window.navigator.permissions.query = function(p) {
-        return p.name === "notifications"
-          ? Promise.resolve({ state: Notification.permission })
-          : oq(p);
-      };
-    })();
-    (function() {
-      var gp = WebGLRenderingContext.prototype.getParameter;
-      WebGLRenderingContext.prototype.getParameter = function(p) {
-        if (p === 37445) return "Intel Inc.";
-        if (p === 37446) return "Intel Iris OpenGL Engine";
-        return gp.call(this, p);
-      };
-    })();
-  `;
+  for (const page of context.pages()) await page.addInitScript(EXTRA_EVASIONS);
+  context.on("page", async (page) => await page.addInitScript(EXTRA_EVASIONS));
 
-  for (const page of context.pages()) await page.addInitScript(stealthScript);
-  context.on("page", async (page) => await page.addInitScript(stealthScript));
-
-  log("INFO", "browser", "Launched with stealth scripts");
+  log("INFO", "browser", "Launched with playwright-extra stealth + extra evasions");
   return context;
 }
 
@@ -490,7 +624,7 @@ async function traverseGrid(page: Page) {
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  log("INFO", "main", "=== Playwright United Automation ===");
+  log("INFO", "main", "=== Playwright United Automation (Stealth) ===");
 
   let context: BrowserContext | undefined;
 
